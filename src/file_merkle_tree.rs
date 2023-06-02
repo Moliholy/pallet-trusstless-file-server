@@ -1,6 +1,6 @@
 use codec::{Decode, Encode, EncodeLike};
-use scale_info::{Path, Type, TypeInfo};
 use scale_info::build::Fields;
+use scale_info::{Path, Type, TypeInfo};
 use sp_io::hashing::sha2_256;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -11,7 +11,6 @@ const CHUNK_SIZE: usize = 1024;
 const HASH_SIZE: usize = 32;
 /// In case the number of bytes is not a power of two, we fill with zeroes.
 const CHUNK_FILLER: [u8; 32] = [0u8; 32];
-
 
 /// Represents the data structure of a merkle tree.
 /// It includes also the raw file content.
@@ -45,7 +44,11 @@ impl Decode for FileMerkleTree {
         let merkle_tree_len = input.remaining_len()?.unwrap();
         let mut merkle_tree = vec![0u8; merkle_tree_len];
         input.read(&mut merkle_tree)?;
-        Ok(FileMerkleTree { file_bytes, merkle_tree, pieces })
+        Ok(FileMerkleTree {
+            file_bytes,
+            merkle_tree,
+            pieces,
+        })
     }
 }
 
@@ -53,24 +56,14 @@ impl TypeInfo for FileMerkleTree {
     type Identity = Self;
 
     fn type_info() -> Type {
-        Type::builder().path(Path::new("FileMerkleTree", module_path!())).composite(
-            Fields::named()
-                .field(|f| {
-                    f.ty::<Vec<u8>>()
-                        .name("file_bytes")
-                        .type_name("Vec<u8>")
-                })
-                .field(|f| {
-                    f.ty::<Vec<u8>>()
-                        .name("merkle_tree")
-                        .type_name("Vec<u8>")
-                })
-                .field(|f| {
-                    f.ty::<u32>()
-                        .name("pieces")
-                        .type_name("u32")
-                })
-        )
+        Type::builder()
+            .path(Path::new("FileMerkleTree", module_path!()))
+            .composite(
+                Fields::named()
+                    .field(|f| f.ty::<Vec<u8>>().name("file_bytes").type_name("Vec<u8>"))
+                    .field(|f| f.ty::<Vec<u8>>().name("merkle_tree").type_name("Vec<u8>"))
+                    .field(|f| f.ty::<u32>().name("pieces").type_name("u32")),
+            )
     }
 }
 
@@ -82,18 +75,19 @@ impl FileMerkleTree {
     pub fn new(file_bytes: Vec<u8>) -> Self {
         let chunks = file_bytes.chunks(CHUNK_SIZE);
         let pieces = chunks.len();
-        let mut tree = chunks.map(|chunk| {
-            if chunk.len() != CHUNK_SIZE {
-                // process last chunk
-                let mut result = vec![0u8; CHUNK_SIZE];
-                for (index, byte) in chunk.iter().enumerate() {
-                    result[index] = *byte;
+        let mut tree = chunks
+            .map(|chunk| {
+                if chunk.len() != CHUNK_SIZE {
+                    // process last chunk
+                    let mut result = vec![0u8; CHUNK_SIZE];
+                    for (index, byte) in chunk.iter().enumerate() {
+                        result[index] = *byte;
+                    }
+                    sha2_256(result.as_slice())
+                } else {
+                    sha2_256(&chunk)
                 }
-                sha2_256(result.as_slice())
-            } else {
-                sha2_256(&chunk)
-            }
-        })
+            })
             .fold(Vec::<u8>::new(), |mut acc, hash| {
                 acc.append(&mut hash.to_vec());
                 acc
@@ -128,7 +122,9 @@ impl FileMerkleTree {
         let pos = position as usize * CHUNK_SIZE;
         let limit = if position == (self.pieces - 1) {
             self.file_bytes.len()
-        } else { pos + CHUNK_SIZE };
+        } else {
+            pos + CHUNK_SIZE
+        };
         &self.file_bytes[pos..limit]
     }
 
@@ -138,16 +134,26 @@ impl FileMerkleTree {
         &self.merkle_tree[self.merkle_tree.len() - HASH_SIZE..]
     }
 
-    fn find_proof(&self, position: usize, first_index: usize, base: usize, proof: &mut Vec<Vec<u8>>) {
+    fn find_proof(
+        &self,
+        position: usize,
+        first_index: usize,
+        base: usize,
+        proof: &mut Vec<Vec<u8>>,
+    ) {
         if base == 1 {
             // we do not need to return the merkle root
             return;
         }
-        let sibling = if position % 2 == 0 { position + 1 } else { position - 1 };
+        let sibling = if position % 2 == 0 {
+            position + 1
+        } else {
+            position - 1
+        };
         let parent = (position - first_index) / 2 + first_index + base;
         let hash = self.merkle_tree[sibling * HASH_SIZE..((sibling + 1) * HASH_SIZE)].to_vec();
         proof.push(hash);
-        self.find_proof(parent, first_index + base,base / 2, proof);
+        self.find_proof(parent, first_index + base, base / 2, proof);
     }
 
     /// Finds the content and merkle proof of a given piece
@@ -165,7 +171,12 @@ impl FileMerkleTree {
             vec![self.file_chunk_at(piece).to_vec()]
         } else {
             let mut proof = Vec::new();
-            self.find_proof(piece as usize, 0, self.pieces.next_power_of_two() as usize, &mut proof);
+            self.find_proof(
+                piece as usize,
+                0,
+                self.pieces.next_power_of_two() as usize,
+                &mut proof,
+            );
             proof
         };
         Some((content, proof))

@@ -29,10 +29,10 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use crate::file_merkle_tree::FileMerkleTree;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
     use sp_std::vec::Vec;
-    use crate::file_merkle_tree::FileMerkleTree;
 
     #[pallet::pallet]
     #[pallet::without_storage_info]
@@ -44,12 +44,15 @@ pub mod pallet {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
     }
 
-
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Event emitted when a claim has been created.
-        FileUploaded { who: T::AccountId, merkle_root: T::Hash, pieces: u32 },
+        FileUploaded {
+            who: T::AccountId,
+            merkle_root: T::Hash,
+            pieces: u32,
+        },
     }
 
     #[pallet::error]
@@ -59,7 +62,8 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-    pub(super) type Files<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, (T::AccountId, FileMerkleTree), OptionQuery>;
+    pub(super) type Files<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::Hash, (T::AccountId, FileMerkleTree), OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -75,9 +79,8 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
 
             let file_merkle_tree = FileMerkleTree::new(file_bytes.clone());
-            let merkle_root = T::Hash::decode(
-                &mut file_merkle_tree.merkle_root()
-            ).or(Err(Error::<T>::Unhasheable))?;
+            let merkle_root = T::Hash::decode(&mut file_merkle_tree.merkle_root())
+                .or(Err(Error::<T>::Unhasheable))?;
 
             // Store the claim with the sender and block number.
             Files::<T>::insert(&merkle_root, (&who, &file_merkle_tree));
@@ -112,7 +115,9 @@ pub mod pallet {
         /// and with it hash along with the rest of the proofs until the merkle root is finally computed.
         /// This way it gets proven that the content is authentic in a trustless manner.
         pub fn get_proof(merkle_root: Vec<u8>, position: u32) -> Option<(Vec<u8>, Vec<Vec<u8>>)> {
-            let key = T::Hash::decode(&mut merkle_root.as_slice()).map_err(|_| None::<T>).ok()?;
+            let key = T::Hash::decode(&mut merkle_root.as_slice())
+                .map_err(|_| None::<T>)
+                .ok()?;
             let (_, merkle_tree) = Files::<T>::get(key)?;
             merkle_tree.merkle_proof(position)
         }

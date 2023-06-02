@@ -35,7 +35,7 @@ its corresponding merkle tree and the number of file chunks.
 
 ### RPC methods
 
-#### template_getFiles
+#### trustless_file_server_getFiles
 
 Returns a JSON list of the merkle hashes and number of 1KB pieces of the files being served. This operation simply
 iterates through the `StorageMap` and fetches the corresponding data.
@@ -45,7 +45,7 @@ Request:
 $ curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d '{
      "jsonrpc": "2.0",
       "id": 1,
-      "method": "template_getFiles",
+      "method": "trustless_file_server_getFiles",
       "params": []
     }'
 ```
@@ -64,7 +64,7 @@ Response:
 }
 ```
 
-#### template_getProof
+#### trustless_file_server_getProof
 
 Returns the chunk content as an hexadecimal-encoded string, along with the cryptographic proof necessary to build up
 the merkle root.
@@ -74,7 +74,7 @@ Request:
 $ curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d '{
      "jsonrpc": "2.0",
       "id": 1,
-      "method": "template_getProof",
+      "method": "trustless_file_server_getProof",
       "params": [null, "18d35a4d731e0785fe855b4ed59033e96607137da7bb875c03f6cea5d1f8cacf", 8]
     }'
 ```
@@ -105,7 +105,7 @@ Request:
 $ curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d '{
      "jsonrpc": "2.0",
       "id": 1,
-      "method": "template_getProof",
+      "method": "trustless_file_server_getProof",
       "params": [null, "18d35a4d731e0785fe855b4ed59033e96607137da7bb875c03f6cea5d1f8cacf", 40]
     }'
 ```
