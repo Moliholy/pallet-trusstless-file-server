@@ -71,7 +71,7 @@ pub mod pallet {
         /// Bear in mind that as a general rule of thumb blockchains should not store big amounts of
         /// data, and instead decentralized services like IPFS should be used, storing only the
         /// associated hash on the blockchain.
-        #[pallet::weight(0)]
+        #[pallet::weight({0})]
         #[pallet::call_index(0)]
         pub fn upload_file(origin: OriginFor<T>, file_bytes: Vec<u8>) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
@@ -83,7 +83,7 @@ pub mod pallet {
                 .or(Err(Error::<T>::Unhasheable))?;
 
             // Store the claim with the sender and block number.
-            Files::<T>::insert(&merkle_root, (&who, &file_merkle_tree));
+            Files::<T>::insert(merkle_root, (&who, &file_merkle_tree));
 
             // Emit an event that the claim was created.
             Self::deposit_event(Event::FileUploaded {
@@ -100,10 +100,9 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Gets from the storage all file hashes ever submitted.
         pub fn get_files() -> Vec<(Vec<u8>, u32)> {
-            let result = Files::<T>::iter()
+            Files::<T>::iter()
                 .map(|(_, (_, tree))| (tree.merkle_root().to_vec(), tree.pieces))
-                .collect::<Vec<(Vec<u8>, u32)>>();
-            result
+                .collect::<Vec<(Vec<u8>, u32)>>()
         }
 
         /// Given a file's merkle root hash, gets the merkle proof of a given 1KB-chunk, identified

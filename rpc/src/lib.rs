@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use array_bytes;
 use jsonrpsee::{
     core::{Error as JsonRpseeError, RpcResult},
     proc_macros::rpc,

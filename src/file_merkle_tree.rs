@@ -85,7 +85,7 @@ impl FileMerkleTree {
                     }
                     sha2_256(result.as_slice())
                 } else {
-                    sha2_256(&chunk)
+                    sha2_256(chunk)
                 }
             })
             .fold(Vec::<u8>::new(), |mut acc, hash| {
@@ -105,7 +105,7 @@ impl FileMerkleTree {
                 let mut result = Vec::with_capacity(HASH_SIZE * 2);
                 result.extend_from_slice(slice1);
                 result.extend_from_slice(slice2);
-                let hash = sha2_256(&result.as_slice());
+                let hash = sha2_256(result.as_slice());
                 tree.extend_from_slice(&hash);
             }
             pos += num_items;
