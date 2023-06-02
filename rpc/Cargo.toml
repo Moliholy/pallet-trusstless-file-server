@@ -1,0 +1,37 @@
+[package]
+name = "pallet-template-rpc"
+version = "1.0.0"
+edition = "2021"
+authors = ["Alex Bean <https://github.com/AlexD10S>"]
+description = 'RPC methods for the template pallet'
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
+    "derive",
+] }
+
+jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
+serde = "1.0.136"
+serde_json = "1.0.85"
+
+# Substrate packages
+
+sp-api = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
+sp-blockchain = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
+sp-runtime = { default-features = false, version = "7.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
+sp-std = { version = "5.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
+array-bytes = { version = "6.0.0", default-features = false }
+
+# local packages
+pallet-template-runtime-api = { path = "./runtime-api", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "sp-api/std",
+    "sp-runtime/std",
+    "pallet-template-runtime-api/std"
+]
