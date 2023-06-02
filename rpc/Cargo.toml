@@ -11,7 +11,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 array-bytes = { version = "6.0.0", default-features = false }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
-jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
+jsonrpsee = { version = "0.16.2", features = ["client", "server", "macros"] }
 
 pallet-trustless-file-server-runtime-api = { path = "./runtime-api", default-features = false }
 serde = "1.0.136"

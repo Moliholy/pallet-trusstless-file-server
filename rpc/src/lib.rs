@@ -7,7 +7,6 @@ use jsonrpsee::{
 };
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
 
 pub use pallet_trustless_file_server_runtime_api::TrustlessFileServerApi as TrustlessFileServerRuntimeApi;
@@ -65,9 +64,9 @@ where
 {
     fn get_files(&self, at: Option<<Block as BlockT>::Hash>) -> RpcResult<Vec<HashItem>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_default();
 
-        let result = api.get_files(&at).map_err(runtime_error_into_rpc_err)?;
+        let result = api.get_files(at).map_err(runtime_error_into_rpc_err)?;
         let hashes = result
             .into_iter()
             .map(|item| HashItem {
@@ -85,12 +84,12 @@ where
         position: u32,
     ) -> RpcResult<MerkleProof> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
-        let merkle_root_bytes = array_bytes::hex2bytes(&merkle_root)
+        let at = at.unwrap_or_default();
+        let merkle_root_bytes = array_bytes::hex2bytes(merkle_root)
             .map_err(runtime_error_into_rpc_err)?
             .to_vec();
         let result = api
-            .get_proof(&at, merkle_root_bytes, position)
+            .get_proof(at, merkle_root_bytes, position)
             .map_err(runtime_error_into_rpc_err)?;
         match result {
             Some((content, proof)) => Ok(MerkleProof {
@@ -104,7 +103,7 @@ where
 
 const RUNTIME_ERROR: i32 = 1;
 
-fn vec_to_hex_string(data: &Vec<u8>) -> String {
+fn vec_to_hex_string(data: &[u8]) -> String {
     data.iter()
         .map(|b| format!("{:02x}", b))
         .collect::<Vec<String>>()
