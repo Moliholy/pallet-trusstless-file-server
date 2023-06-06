@@ -1,7 +1,11 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 use frame_support::log;
 use frame_support::sp_runtime::offchain::http;
 use frame_support::sp_runtime::offchain::http::Request;
 use sp_core::offchain::Duration;
+use sp_std::vec;
+use sp_std::vec::Vec;
 
 pub fn ipfs_get_hash_from_sha256(hash: &[u8; 32]) -> Vec<u8> {
     let full_data: Vec<_> = vec![vec![0x12, 0x20], hash.to_vec()]

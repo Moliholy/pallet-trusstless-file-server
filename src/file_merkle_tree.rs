@@ -1,7 +1,10 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 use codec::{Decode, Encode, EncodeLike};
 use scale_info::build::Fields;
 use scale_info::{Path, Type, TypeInfo};
 use sp_io::hashing::sha2_256;
+use sp_std::vec;
 use sp_std::vec::Vec;
 
 /// File chunks to build the merkle tree are hardcoded to 1KB
