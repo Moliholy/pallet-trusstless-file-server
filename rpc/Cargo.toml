@@ -22,5 +22,10 @@ sp-api = { default-features = false, version = "4.0.0-dev", git = "https://githu
 sp-blockchain = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.42" }
 sp-runtime = { default-features = false, version = "7.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.42" }
 
-[dev-dependencies]
-pallet-trustless-file-server = { version = "0.0.1", path = ".." }
+[features]
+default = ["std"]
+std = [
+    "sp-api/std",
+    "sp-runtime/std",
+    "pallet-trustless-file-server-runtime-api/std"
+]
