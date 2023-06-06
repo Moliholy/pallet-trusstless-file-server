@@ -19,7 +19,8 @@
 //! blockchain storage the associated hash.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#![no_std]
+extern crate alloc;
 extern crate core;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -30,11 +31,11 @@ mod ipfs;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use alloc::string::{String, ToString};
     use frame_support::log;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::offchain::storage::StorageValueRef;
     use frame_system::pallet_prelude::*;
-    use serde::Deserialize;
     use sp_io::offchain_index;
     use sp_std::vec::Vec;
 
@@ -43,8 +44,11 @@ pub mod pallet {
 
     const ONCHAIN_TX_KEY: &[u8] = b"pallet_trustless_file-server::indexing1";
 
-    #[derive(Debug, Deserialize, Encode, Decode, Default)]
-    struct IndexingData(Vec<u8>, u32);
+    #[derive(Debug, Encode, Decode, Default)]
+    struct IndexingData {
+        content: Vec<u8>,
+        pieces: u32,
+    }
 
     #[pallet::pallet]
     #[pallet::without_storage_info]
@@ -56,7 +60,7 @@ pub mod pallet {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         #[pallet::constant]
-        type IpfsNodeUrl: Get<String>;
+        type IpfsNodeUrl: Get<&'static str>;
     }
 
     pub trait ConfigHelper: Config {
@@ -65,7 +69,7 @@ pub mod pallet {
 
     impl<T: Config> ConfigHelper for T {
         fn ipfs_node_url() -> String {
-            Self::IpfsNodeUrl::get()
+            Self::IpfsNodeUrl::get().to_string()
         }
     }
 
@@ -98,12 +102,8 @@ pub mod pallet {
             let storage_ref = StorageValueRef::persistent(&key);
 
             if let Ok(Some(data)) = storage_ref.get::<IndexingData>() {
-                log::info!(
-                    "local storage data: {:?}, {:?}",
-                    std::str::from_utf8(&data.0).unwrap_or("error"),
-                    data.1
-                );
-                ipfs::ipfs_upload(&T::ipfs_node_url(), &data.0)
+                log::info!("local storage data: {:?}, {:?}", &data.content, data.pieces);
+                ipfs::ipfs_upload(&T::ipfs_node_url(), &data.content)
                     .expect("Could not upload file to IPFS");
             } else {
                 log::info!("Error reading from local storage.");
@@ -130,7 +130,10 @@ pub mod pallet {
 
             // Leave the offchain work
             let key = Self::derived_key(<frame_system::Pallet<T>>::block_number());
-            let data = IndexingData(file_bytes, file_merkle_tree.pieces);
+            let data = IndexingData {
+                content: file_bytes,
+                pieces: file_merkle_tree.pieces,
+            };
             offchain_index::set(&key, &data.encode());
 
             // Store the claim with the sender and block number.

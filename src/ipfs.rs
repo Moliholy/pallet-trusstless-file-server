@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use alloc::borrow::ToOwned;
 use frame_support::log;
 use frame_support::sp_runtime::offchain::http;
 use frame_support::sp_runtime::offchain::http::Request;
