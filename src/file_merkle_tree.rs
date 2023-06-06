@@ -2,11 +2,10 @@ use codec::{Decode, Encode, EncodeLike};
 use scale_info::build::Fields;
 use scale_info::{Path, Type, TypeInfo};
 use sp_io::hashing::sha2_256;
-use sp_std::vec;
 use sp_std::vec::Vec;
 
 /// File chunks to build the merkle tree are hardcoded to 1KB
-const CHUNK_SIZE: usize = 1024;
+const DEFAULT_CHUNK_SIZE: usize = 1024;
 /// Length of a sha256 hash, in bytes.
 const HASH_SIZE: usize = 32;
 /// In case the number of bytes is not a power of two, we fill with zeroes.
@@ -16,17 +15,17 @@ const CHUNK_FILLER: [u8; 32] = [0u8; 32];
 /// It includes also the raw file content.
 #[derive(Default, Clone, PartialEq)]
 pub struct FileMerkleTree {
-    pub file_bytes: Vec<u8>,
     pub merkle_tree: Vec<u8>,
     pub pieces: u32,
+    pub file_size: u32,
+    pub chunk_size: usize,
 }
 
 impl Encode for FileMerkleTree {
     fn encode(&self) -> Vec<u8> {
-        let file_size = (self.file_bytes.len() as u32).to_le_bytes();
+        let file_size = self.file_size.to_le_bytes();
         let mut result = Vec::from(file_size.as_slice());
         result.extend_from_slice(self.pieces.to_le_bytes().as_slice());
-        result.extend_from_slice(&self.file_bytes);
         result.extend_from_slice(&self.merkle_tree);
         result
     }
@@ -39,15 +38,14 @@ impl Decode for FileMerkleTree {
         let file_size = u32::from_le_bytes(buff);
         input.read(&mut buff)?;
         let pieces = u32::from_le_bytes(buff);
-        let mut file_bytes = vec![0u8; file_size as usize];
-        input.read(&mut file_bytes)?;
         let merkle_tree_len = input.remaining_len()?.unwrap();
         let mut merkle_tree = vec![0u8; merkle_tree_len];
         input.read(&mut merkle_tree)?;
         Ok(FileMerkleTree {
-            file_bytes,
+            file_size,
             merkle_tree,
             pieces,
+            chunk_size: DEFAULT_CHUNK_SIZE,
         })
     }
 }
@@ -72,14 +70,14 @@ impl EncodeLike for FileMerkleTree {}
 impl FileMerkleTree {
     /// Constructs a `FileMerkleTree` out of the provided file bytes.
     /// It builds the whole merkle tree and keeps file contents.
-    pub fn new(file_bytes: Vec<u8>) -> Self {
-        let chunks = file_bytes.chunks(CHUNK_SIZE);
+    pub fn new(file_bytes: &[u8]) -> Self {
+        let chunks = file_bytes.chunks(DEFAULT_CHUNK_SIZE);
         let pieces = chunks.len();
         let mut tree = chunks
             .map(|chunk| {
-                if chunk.len() != CHUNK_SIZE {
+                if chunk.len() != DEFAULT_CHUNK_SIZE {
                     // process last chunk
-                    let mut result = vec![0u8; CHUNK_SIZE];
+                    let mut result = vec![0u8; DEFAULT_CHUNK_SIZE];
                     for (index, byte) in chunk.iter().enumerate() {
                         result[index] = *byte;
                     }
@@ -112,20 +110,17 @@ impl FileMerkleTree {
             num_items /= 2;
         }
         Self {
-            file_bytes,
+            file_size: file_bytes.len() as u32,
             pieces: pieces as u32,
             merkle_tree: tree,
+            chunk_size: DEFAULT_CHUNK_SIZE,
         }
     }
 
-    fn file_chunk_at(&self, position: u32) -> &[u8] {
-        let pos = position as usize * CHUNK_SIZE;
-        let limit = if position == (self.pieces - 1) {
-            self.file_bytes.len()
-        } else {
-            pos + CHUNK_SIZE
-        };
-        &self.file_bytes[pos..limit]
+    pub(crate) fn file_chunk_hash_at(&self, position: u32) -> [u8; HASH_SIZE] {
+        let pos = position as usize * HASH_SIZE;
+        let limit = pos + HASH_SIZE;
+        self.merkle_tree[pos..limit].try_into().unwrap()
     }
 
     /// Returns the merkle root of this file.
@@ -162,23 +157,12 @@ impl FileMerkleTree {
     /// Returns a tuple with the given chunk content and the merkle proof.
     /// The sha256 of the content can be used to compute the merkle root hash
     /// along with the merkle proof.
-    pub fn merkle_proof(&self, piece: u32) -> Option<(Vec<u8>, Vec<Vec<u8>>)> {
+    pub fn merkle_proof(&self, piece: u32) -> Option<Vec<Vec<u8>>> {
         if piece >= self.pieces {
             return None;
         }
-        let content = self.file_chunk_at(piece).to_vec();
-        let proof: Vec<Vec<u8>> = if self.pieces == 1 {
-            vec![self.file_chunk_at(piece).to_vec()]
-        } else {
-            let mut proof = Vec::new();
-            self.find_proof(
-                piece as usize,
-                0,
-                self.pieces.next_power_of_two() as usize,
-                &mut proof,
-            );
-            proof
-        };
-        Some((content, proof))
+        let mut proof = Vec::new();
+        self.find_proof(piece as usize, 0, self.pieces.next_power_of_two() as usize, &mut proof);
+        Some(proof)
     }
 }

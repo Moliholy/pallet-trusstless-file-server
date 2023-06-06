@@ -22,17 +22,29 @@
 
 extern crate core;
 
-mod file_merkle_tree;
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+mod file_merkle_tree;
+mod ipfs;
+
 #[frame_support::pallet]
 pub mod pallet {
-    use crate::file_merkle_tree::FileMerkleTree;
+    use frame_support::log;
     use frame_support::pallet_prelude::*;
+    use frame_support::sp_runtime::offchain::storage::StorageValueRef;
     use frame_system::pallet_prelude::*;
+    use serde::Deserialize;
+    use sp_io::offchain_index;
     use sp_std::vec::Vec;
+
+    use crate::file_merkle_tree::FileMerkleTree;
+    use crate::ipfs;
+
+    const ONCHAIN_TX_KEY: &[u8] = b"pallet_trustless_file-server::indexing1";
+
+    #[derive(Debug, Deserialize, Encode, Decode, Default)]
+    struct IndexingData(Vec<u8>, u32);
 
     #[pallet::pallet]
     #[pallet::without_storage_info]
@@ -42,6 +54,19 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        #[pallet::constant]
+        type IpfsNodeUrl: Get<String>;
+    }
+
+    pub trait ConfigHelper: Config {
+        fn ipfs_node_url() -> String;
+    }
+
+    impl<T: Config> ConfigHelper for T {
+        fn ipfs_node_url() -> String {
+            Self::IpfsNodeUrl::get()
+        }
     }
 
     #[pallet::event]
@@ -52,6 +77,7 @@ pub mod pallet {
             who: T::AccountId,
             merkle_root: T::Hash,
             pieces: u32,
+            size: u32,
         },
     }
 
@@ -64,6 +90,26 @@ pub mod pallet {
     #[pallet::storage]
     pub(super) type Files<T: Config> =
         StorageMap<_, Blake2_128Concat, T::Hash, (T::AccountId, FileMerkleTree), OptionQuery>;
+
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn offchain_worker(block_number: T::BlockNumber) {
+            let key = Self::derived_key(block_number);
+            let storage_ref = StorageValueRef::persistent(&key);
+
+            if let Ok(Some(data)) = storage_ref.get::<IndexingData>() {
+                log::info!(
+                    "local storage data: {:?}, {:?}",
+                    std::str::from_utf8(&data.0).unwrap_or("error"),
+                    data.1
+                );
+                ipfs::ipfs_upload(&T::ipfs_node_url(), &data.0)
+                    .expect("Could not upload file to IPFS");
+            } else {
+                log::info!("Error reading from local storage.");
+            }
+        }
+    }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -78,9 +124,14 @@ pub mod pallet {
             // This function will return an error if the extrinsic is not signed.
             let who = ensure_signed(origin)?;
 
-            let file_merkle_tree = FileMerkleTree::new(file_bytes.clone());
+            let file_merkle_tree = FileMerkleTree::new(&file_bytes);
             let merkle_root = T::Hash::decode(&mut file_merkle_tree.merkle_root())
                 .or(Err(Error::<T>::Unhasheable))?;
+
+            // Leave the offchain work
+            let key = Self::derived_key(<frame_system::Pallet<T>>::block_number());
+            let data = IndexingData(file_bytes, file_merkle_tree.pieces);
+            offchain_index::set(&key, &data.encode());
 
             // Store the claim with the sender and block number.
             Files::<T>::insert(merkle_root, (&who, &file_merkle_tree));
@@ -90,6 +141,7 @@ pub mod pallet {
                 who,
                 merkle_root,
                 pieces: file_merkle_tree.pieces,
+                size: file_merkle_tree.file_size,
             });
 
             Ok(())
@@ -98,6 +150,17 @@ pub mod pallet {
 
     // RPC methods
     impl<T: Config> Pallet<T> {
+        fn derived_key(block_number: T::BlockNumber) -> Vec<u8> {
+            block_number.using_encoded(|encoded_bn| {
+                ONCHAIN_TX_KEY
+                    .iter()
+                    .chain(b"/".iter())
+                    .chain(encoded_bn)
+                    .copied()
+                    .collect::<Vec<u8>>()
+            })
+        }
+
         /// Gets from the storage all file hashes ever submitted.
         pub fn get_files() -> Vec<(Vec<u8>, u32)> {
             Files::<T>::iter()
@@ -105,9 +168,9 @@ pub mod pallet {
                 .collect::<Vec<(Vec<u8>, u32)>>()
         }
 
-        /// Given a file's merkle root hash, gets the merkle proof of a given 1KB-chunk, identified
+        /// Given a file's merkle root hash, gets the merkle proof of a given  chunk, identified
         /// by its position.
-        /// Returns a tuple where the first element is the chunk content, and the second is
+        /// Returns a tuple where the first element is the IPFS hash, and the second is
         /// the merkle proof.
         ///
         /// The idea is that the client can (and should) use the content to compute the sha256 hash,
@@ -118,7 +181,10 @@ pub mod pallet {
                 .map_err(|_| None::<T>)
                 .ok()?;
             let (_, merkle_tree) = Files::<T>::get(key)?;
-            merkle_tree.merkle_proof(position)
+            let proof = merkle_tree.merkle_proof(position)?;
+            let chunk_hash = merkle_tree.file_chunk_hash_at(position);
+            let chunk_ipfs_hash = ipfs::ipfs_get_hash_from_sha256(&chunk_hash);
+            Some((chunk_ipfs_hash, proof))
         }
     }
 }
