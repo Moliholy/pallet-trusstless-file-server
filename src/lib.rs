@@ -42,7 +42,7 @@ pub mod pallet {
     use crate::file_merkle_tree::FileMerkleTree;
     use crate::ipfs;
 
-    const ONCHAIN_TX_KEY: &[u8] = b"pallet_trustless_file-server::indexing1";
+    const ONCHAIN_TX_KEY: &[u8] = b"pallet_trustless_file_server::indexing1";
 
     #[derive(Debug, Encode, Decode, Default)]
     struct IndexingData {
@@ -100,13 +100,17 @@ pub mod pallet {
         fn offchain_worker(block_number: T::BlockNumber) {
             let key = Self::derived_key(block_number);
             let storage_ref = StorageValueRef::persistent(&key);
+            log::info!("Offchain worker: retrieved storage for block {:?}", block_number);
 
             if let Ok(Some(data)) = storage_ref.get::<IndexingData>() {
-                log::info!("local storage data: {:?}, {:?}", &data.content, data.pieces);
+                log::info!("Offchain worker: Found storage at block {:?}", block_number);
                 ipfs::ipfs_upload(&T::ipfs_node_url(), &data.content)
                     .expect("Could not upload file to IPFS");
             } else {
-                log::info!("Error reading from local storage.");
+                log::info!(
+                    "Offchain worker: nothing to process for offchain worker at block {:?}",
+                    block_number
+                );
             }
         }
     }
@@ -129,7 +133,9 @@ pub mod pallet {
                 .or(Err(Error::<T>::Unhasheable))?;
 
             // Leave the offchain work
-            let key = Self::derived_key(<frame_system::Pallet<T>>::block_number());
+            let block_number = <frame_system::Pallet<T>>::block_number();
+            let key = Self::derived_key(block_number);
+            log::info!("Inserting storage for block {:?}", block_number);
             let data = IndexingData {
                 content: file_bytes,
                 pieces: file_merkle_tree.pieces,
