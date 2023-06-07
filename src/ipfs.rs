@@ -17,7 +17,7 @@ pub fn ipfs_get_hash_from_sha256(hash: &[u8; 32]) -> Vec<u8> {
 }
 
 pub fn ipfs_upload(base_url: &str, data: &[u8]) -> Result<(), http::Error> {
-    let url = base_url.to_owned() + "/api/v0/block_put";
+    let url = base_url.to_owned() + "/api/v0/block/put";
     let request = Request::post(&url, vec![data]);
     let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
     let pending = request
