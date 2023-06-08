@@ -7,20 +7,19 @@ use jsonrpsee::{
 };
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
 
 pub use pallet_trustless_file_server_runtime_api::TrustlessFileServerApi as TrustlessFileServerRuntimeApi;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct HashItem {
-    hash: String,
+    merkle_root: String,
     pieces: u32,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct MerkleProof {
-    content: String,
+    ipfs_hash: String,
     proof: Vec<String>,
 }
 
@@ -65,14 +64,14 @@ where
 {
     fn get_files(&self, at: Option<<Block as BlockT>::Hash>) -> RpcResult<Vec<HashItem>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let result = api.get_files(at).map_err(runtime_error_into_rpc_err)?;
         let hashes = result
             .into_iter()
             .map(|item| HashItem {
                 pieces: item.1,
-                hash: vec_to_hex_string(&item.0),
+                merkle_root: vec_to_hex_string(&item.0),
             })
             .collect();
         Ok(hashes)
@@ -85,7 +84,7 @@ where
         position: u32,
     ) -> RpcResult<MerkleProof> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
         let merkle_root_bytes = array_bytes::hex2bytes(merkle_root)
             .map_err(runtime_error_into_rpc_err)?
             .to_vec();
@@ -93,8 +92,8 @@ where
             .get_proof(at, merkle_root_bytes, position)
             .map_err(runtime_error_into_rpc_err)?;
         match result {
-            Some((content, proof)) => Ok(MerkleProof {
-                content: vec_to_hex_string(&content),
+            Some((ipfs_hash, proof)) => Ok(MerkleProof {
+                ipfs_hash,
                 proof: proof.iter().map(|hash| vec_to_hex_string(hash)).collect(),
             }),
             None => Err(runtime_error_into_rpc_err("Failure getting the merkle proof")),

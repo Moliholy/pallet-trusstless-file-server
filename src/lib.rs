@@ -195,7 +195,7 @@ pub mod pallet {
         /// The idea is that the client can (and should) use the content to compute the sha256 hash,
         /// and with it hash along with the rest of the proofs until the merkle root is finally computed.
         /// This way it gets proven that the content is authentic in a trustless manner.
-        pub fn get_proof(merkle_root: Vec<u8>, position: u32) -> Option<(Vec<u8>, Vec<Vec<u8>>)> {
+        pub fn get_proof(merkle_root: Vec<u8>, position: u32) -> Option<(String, Vec<Vec<u8>>)> {
             let key = T::Hash::decode(&mut merkle_root.as_slice())
                 .map_err(|_| None::<T>)
                 .ok()?;
