@@ -21,10 +21,11 @@ pub fn ipfs_get_hash_from_sha256(hash: &[u8; 32]) -> Vec<u8> {
 fn make_multipart(data: &[u8]) -> Vec<u8> {
     BOUNDARY
         .iter()
-        .chain(b"\nContent-Disposition: form-data; name=\"file\"\nContent-Type: application/octet-stream\n\n")
+        .chain(b"\r\nContent-Disposition: form-data; name=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\n")
         .chain(data)
+        .chain(b"\r\n--")
         .chain(BOUNDARY)
-        .chain(b"--")
+        .chain(b"--\r\n")
         .copied()
         .collect::<Vec<u8>>()
 }
@@ -32,7 +33,6 @@ fn make_multipart(data: &[u8]) -> Vec<u8> {
 pub fn ipfs_upload(base_url: &str, data: &[u8]) -> Result<(), http::Error> {
     let url = base_url.to_owned() + "/api/v0/block/put";
     let multipart = make_multipart(data);
-    //let ms = core::str::from_utf8(multipart.as_slice()).unwrap();
     let request = Request::post(&url, vec![multipart.as_slice()]).add_header(
         "Content-Type",
         format!("multipart/form-data; boundary={}", core::str::from_utf8(BOUNDARY).unwrap())
@@ -40,6 +40,8 @@ pub fn ipfs_upload(base_url: &str, data: &[u8]) -> Result<(), http::Error> {
     );
     let pending = request.send().map_err(|_| http::Error::IoError)?;
     let response = pending.wait()?;
+    let body = response.body().collect::<Vec<u8>>();
+    log::info!("IPFS response: {}", sp_std::str::from_utf8(&body).unwrap());
     if response.code == 200 {
         log::info!("Chunk successfully uploaded");
     } else {
