@@ -152,10 +152,10 @@ pub mod pallet {
             };
             offchain_index::set(&key, &data.encode());
 
-            // Store the claim with the sender and block number.
+            // Update the storage
             Files::<T>::insert(merkle_root, (&who, &file_merkle_tree));
 
-            // Emit an event that the claim was created.
+            // Emit the event
             Self::deposit_event(Event::FileUploaded {
                 who,
                 merkle_root,
