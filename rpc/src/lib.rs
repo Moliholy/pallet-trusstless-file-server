@@ -7,6 +7,7 @@ use jsonrpsee::{
 };
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
+use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
 
 pub use pallet_trustless_file_server_runtime_api::TrustlessFileServerApi as TrustlessFileServerRuntimeApi;
@@ -25,10 +26,10 @@ pub struct MerkleProof {
 
 #[rpc(client, server)]
 pub trait TrustlessFileServerApi<BlockHash> {
-    #[method(name = "trustless_file_server_getFiles")]
+    #[method(name = "trustless_file_server_get_files")]
     fn get_files(&self, at: Option<BlockHash>) -> RpcResult<Vec<HashItem>>;
 
-    #[method(name = "trustless_file_server_getProof")]
+    #[method(name = "trustless_file_server_get_proof")]
     fn get_proof(
         &self,
         at: Option<BlockHash>,
@@ -64,7 +65,7 @@ where
 {
     fn get_files(&self, at: Option<<Block as BlockT>::Hash>) -> RpcResult<Vec<HashItem>> {
         let api = self.client.runtime_api();
-        let at = at.unwrap_or_default();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let result = api.get_files(at).map_err(runtime_error_into_rpc_err)?;
         let hashes = result
@@ -84,7 +85,7 @@ where
         position: u32,
     ) -> RpcResult<MerkleProof> {
         let api = self.client.runtime_api();
-        let at = at.unwrap_or_default();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
         let merkle_root_bytes = array_bytes::hex2bytes(merkle_root)
             .map_err(runtime_error_into_rpc_err)?
             .to_vec();
