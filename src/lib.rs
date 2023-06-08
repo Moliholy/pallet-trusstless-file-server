@@ -47,7 +47,7 @@ pub mod pallet {
     #[derive(Debug, Encode, Decode, Default)]
     struct IndexingData {
         content: Vec<u8>,
-        pieces: u32,
+        chunk_size: u32,
     }
 
     #[pallet::pallet]
@@ -104,8 +104,18 @@ pub mod pallet {
 
             if let Ok(Some(data)) = storage_ref.get::<IndexingData>() {
                 log::info!("Offchain worker: Found storage at block {:?}", block_number);
-                ipfs::ipfs_upload(&T::ipfs_node_url(), &data.content)
-                    .expect("Could not upload file to IPFS");
+                let mut pos = 0;
+                let file_length = data.content.len();
+                let chunk_size = data.chunk_size as usize;
+                while pos < file_length {
+                    let mut limit = pos + chunk_size;
+                    if limit > file_length {
+                        limit = file_length;
+                    }
+                    ipfs::ipfs_upload(&T::ipfs_node_url(), &data.content[pos..limit])
+                        .expect("Could not upload a file chunk to IPFS");
+                    pos += chunk_size;
+                }
             } else {
                 log::info!(
                     "Offchain worker: nothing to process for offchain worker at block {:?}",
@@ -138,7 +148,7 @@ pub mod pallet {
             log::info!("Inserting storage for block {:?}", block_number);
             let data = IndexingData {
                 content: file_bytes,
-                pieces: file_merkle_tree.pieces,
+                chunk_size: file_merkle_tree.chunk_size as u32,
             };
             offchain_index::set(&key, &data.encode());
 
