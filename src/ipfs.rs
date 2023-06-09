@@ -30,15 +30,16 @@ pub fn ipfs_get_hash_from_sha256(hash: &[u8; 32]) -> String {
 }
 
 fn make_multipart(data: &[u8]) -> Vec<u8> {
-    BOUNDARY
+    b"--"
         .iter()
+        .chain(BOUNDARY)
         .chain(b"\r\nContent-Disposition: form-data; name=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\n")
         .chain(data)
         .chain(b"\r\n--")
         .chain(BOUNDARY)
         .chain(b"--\r\n")
         .copied()
-        .collect::<Vec<u8>>()
+        .collect()
 }
 
 pub fn ipfs_upload(base_url: &str, data: &[u8]) -> Result<(), http::Error> {
@@ -51,33 +52,14 @@ pub fn ipfs_upload(base_url: &str, data: &[u8]) -> Result<(), http::Error> {
     );
     let pending = request.send().map_err(|_| http::Error::IoError)?;
     let response = pending.wait()?;
+    let response_body = response.body();
+    let raw_body = response_body.collect::<Vec<u8>>();
+    let body = core::str::from_utf8(&raw_body).unwrap();
     if response.code == 200 {
-        log::info!("Chunk successfully uploaded");
+        log::info!("Chunk successfully uploaded: {}", body);
     } else {
-        let body = response.body().collect::<Vec<u8>>();
-        log::warn!(
-            "Unexpected status code: {}.\n{}",
-            response.code,
-            core::str::from_utf8(&body).unwrap()
-        );
+        log::warn!("Unexpected status code: {}.\n{}", response.code, body);
         return Err(http::Error::Unknown);
     };
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use sp_io::hashing::sha2_256;
-
-    use super::*;
-
-    #[test]
-    fn test_ipfs_hash_works() {
-        let content = b"hello world".as_slice();
-        let hash = sha2_256(content);
-        assert_eq!(
-            ipfs_get_hash_from_sha256(&hash).as_str(),
-            "bafkreifzjut3te2nhyekklss27nh3k72ysco7y32koao5eei66wof36n5e"
-        );
-    }
 }
