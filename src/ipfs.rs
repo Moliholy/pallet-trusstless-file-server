@@ -3,6 +3,8 @@
 use alloc::borrow::ToOwned;
 use alloc::format;
 use alloc::string::String;
+
+use binascii::b32encode;
 use frame_support::log;
 use frame_support::sp_runtime::offchain::http;
 use frame_support::sp_runtime::offchain::http::Request;
@@ -12,11 +14,19 @@ use sp_std::vec::Vec;
 const BOUNDARY: &[u8] = b"------BOUNDARY";
 
 pub fn ipfs_get_hash_from_sha256(hash: &[u8; 32]) -> String {
-    let full_data: Vec<_> = vec![vec![0x12, 0x20], hash.to_vec()]
+    // CIDv1, raw binary (multicodec), sha2 (hash), digest length (32 bytes)
+    let extra_bytes = vec![0x01, 0x55, 0x12, 0x20];
+    let full_data: Vec<_> = vec![extra_bytes, hash.to_vec()]
         .into_iter()
         .flatten()
         .collect();
-    bs58::encode(full_data).into_string()
+    let mut buff = [0u8; 256];
+    let bytes = b32encode(full_data.as_slice(), &mut buff).unwrap();
+    ("b".to_owned() + core::str::from_utf8(bytes).unwrap())
+        // remove right equal signs
+        .trim_end_matches('=')
+        // remove capitals
+        .to_lowercase()
 }
 
 fn make_multipart(data: &[u8]) -> Vec<u8> {
@@ -67,7 +77,7 @@ mod test {
         let hash = sha2_256(content);
         assert_eq!(
             ipfs_get_hash_from_sha256(&hash).as_str(),
-            "QmaozNR7DZHQK1ZcU9p7QdrshMvXqWK6gpu5rmrkPdT3L4"
+            "bafkreifzjut3te2nhyekklss27nh3k72ysco7y32koao5eei66wof36n5e"
         );
     }
 }
