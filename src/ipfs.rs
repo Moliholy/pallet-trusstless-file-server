@@ -61,3 +61,20 @@ pub fn ipfs_upload(base_url: &str, data: &[u8]) -> Result<(), http::Error> {
     };
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use sp_io::hashing::sha2_256;
+
+    use super::*;
+
+    #[test]
+    fn test_ipfs_hash_works() {
+        let content = b"hello world".as_slice();
+        let hash = sha2_256(content);
+        assert_eq!(
+            ipfs_get_hash_from_sha256(&hash).as_str(),
+            "bafkreifzjut3te2nhyekklss27nh3k72ysco7y32koao5eei66wof36n5e"
+        );
+    }
+}

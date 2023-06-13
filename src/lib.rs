@@ -199,7 +199,7 @@ pub mod pallet {
                 .ok()?;
             let (_, merkle_tree) = Files::<T>::get(key)?;
             let proof = merkle_tree.merkle_proof(position)?;
-            let chunk_hash = merkle_tree.file_chunk_hash_at(position);
+            let chunk_hash = merkle_tree.file_chunk_hash_at(position)?;
             let chunk_ipfs_hash = ipfs::ipfs_get_hash_from_sha256(&chunk_hash);
             Some((chunk_ipfs_hash, proof))
         }
