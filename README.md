@@ -83,12 +83,12 @@ Response:
 {
   "jsonrpc": "2.0",
   "result": {
-    "ipfs_hash": "QmaAu1KYkVL7zohejhr8q5q3UFXuaYUAMVs6xQ7FDFxWRU",
+    "ipfs_hash": "bafkreihptszugz3ixlizu6eir5r4u5ygjzj55vews34bmur35jxgd3bwwm",
     "proof": [
-      "ef9cb3436768bad19a78888f63ca77064e53ded49696f816523bea6e61ec36b3",
-      "83c5dae86b0768e7bedcca73718523bc8bcfd7eeb6c2c728d0f035ec43aa4d63",
-      "db56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71",
-      "73b107c009c3044125c1f12015808b6adcfc44c473e013593f0ca1362bb80955"
+      "72d2b6f941cb4954ece75eb4a4a10a5ee35e39575bf4e4397a3dd8b94c81a0a4",
+      "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+      "73b107c009c3044125c1f12015808b6adcfc44c473e013593f0ca1362bb80955",
+      "fe98120ca95b4927928da36df60736b090a158d213c3fe2bb7683f27c90091ae"
     ]
   },
   "id": 1
@@ -109,7 +109,6 @@ $ curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d
     }'
 ```
 
-Response:[main.py](..%2F..%2FDesktop%2Ftest%2Fmain.py)
 ```json
 {
   "jsonrpc": "2.0",

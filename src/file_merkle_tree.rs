@@ -252,7 +252,7 @@ mod test {
         let merkle_root = tree.merkle_root();
         let proof = match tree.merkle_proof(0) {
             None => panic!("Could not get the proof"),
-            Some(p) => p
+            Some(p) => p,
         };
         assert_eq!(proof.len(), 4);
         let first_chunk = content.chunks(chunk_size).next().unwrap();
