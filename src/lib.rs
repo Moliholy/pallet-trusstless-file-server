@@ -19,7 +19,6 @@
 //! blockchain storage the associated hash.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![no_std]
 extern crate alloc;
 extern crate core;
 
@@ -51,7 +50,6 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
-    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
     #[pallet::config]
@@ -148,7 +146,7 @@ pub mod pallet {
             log::info!("Inserting storage for block {:?}", block_number);
             let data = IndexingData {
                 content: file_bytes,
-                chunk_size: file_merkle_tree.chunk_size as u32,
+                chunk_size: file_merkle_tree.chunk_size() as u32,
             };
             offchain_index::set(&key, &data.encode());
 
@@ -159,8 +157,8 @@ pub mod pallet {
             Self::deposit_event(Event::FileUploaded {
                 who,
                 merkle_root,
-                pieces: file_merkle_tree.pieces,
-                size: file_merkle_tree.file_size,
+                pieces: file_merkle_tree.pieces(),
+                size: file_merkle_tree.file_size as u32,
             });
 
             Ok(())
@@ -183,7 +181,7 @@ pub mod pallet {
         /// Gets from the storage all file hashes ever submitted.
         pub fn get_files() -> Vec<(Vec<u8>, u32)> {
             Files::<T>::iter()
-                .map(|(_, (_, tree))| (tree.merkle_root().to_vec(), tree.pieces))
+                .map(|(_, (_, tree))| (tree.merkle_root().to_vec(), tree.pieces()))
                 .collect::<Vec<(Vec<u8>, u32)>>()
         }
 
