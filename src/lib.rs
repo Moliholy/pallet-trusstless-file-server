@@ -24,6 +24,7 @@ extern crate core;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+pub use weights::*;
 
 #[cfg(test)]
 mod mock;
@@ -33,25 +34,25 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-// pub mod weights;
-// pub use weights::*;
-
 mod file_merkle_tree;
 mod ipfs;
+pub mod weights;
 
 #[frame_support::pallet]
 pub mod pallet {
     use alloc::string::{String, ToString};
+
     use frame_support::log;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::offchain::storage::StorageValueRef;
     use frame_system::pallet_prelude::*;
-    use frame_system::WeightInfo;
     use sp_io::offchain_index;
     use sp_std::vec::Vec;
 
     use crate::file_merkle_tree::FileMerkleTree;
     use crate::ipfs;
+
+    use super::*;
 
     const ONCHAIN_TX_KEY: &[u8] = b"pallet_trustless_file_server::indexing1";
 
@@ -146,8 +147,8 @@ pub mod pallet {
         /// Bear in mind that as a general rule of thumb blockchains should not store big amounts of
         /// data, and instead decentralized services like IPFS should be used, storing only the
         /// associated hash on the blockchain.
-        #[pallet::weight({0})]
         #[pallet::call_index(0)]
+        #[pallet::weight(T::WeightInfo::upload_file(file_bytes.len() as u32))]
         pub fn upload_file(origin: OriginFor<T>, file_bytes: Vec<u8>) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
