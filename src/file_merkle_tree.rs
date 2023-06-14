@@ -61,6 +61,9 @@ impl Encode for FileMerkleTree {
     fn encode(&self) -> Vec<u8> {
         let file_size = self.file_size.to_le_bytes();
         let mut result = Vec::from(file_size.as_slice());
+        if let Some(boundary) = &self.boundary_hash {
+            result.extend_from_slice(boundary.as_slice());
+        }
         result.extend_from_slice(&self.merkle_tree);
         result
     }

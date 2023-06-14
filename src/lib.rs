@@ -25,6 +25,17 @@ extern crate core;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+// pub mod weights;
+// pub use weights::*;
+
 mod file_merkle_tree;
 mod ipfs;
 
@@ -35,6 +46,7 @@ pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::offchain::storage::StorageValueRef;
     use frame_system::pallet_prelude::*;
+    use frame_system::WeightInfo;
     use sp_io::offchain_index;
     use sp_std::vec::Vec;
 
@@ -57,8 +69,12 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+        /// IPFS node base URLs for all workers
         #[pallet::constant]
         type IpfsNodeUrl: Get<&'static str>;
+
+        /// The weight information for this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     pub trait ConfigHelper: Config {
@@ -90,6 +106,7 @@ pub mod pallet {
     }
 
     #[pallet::storage]
+    #[pallet::getter(fn get_file)]
     pub(super) type Files<T: Config> =
         StorageMap<_, Blake2_128Concat, T::Hash, (T::AccountId, FileMerkleTree), OptionQuery>;
 
