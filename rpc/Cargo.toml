@@ -11,11 +11,11 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 array-bytes = { version = "6.0.0", default-features = false }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
-jsonrpsee = { version = "0.16.2", features = ["client", "server", "macros"] }
+jsonrpsee = { version = "0.16.2", features = ["client-core", "server", "macros"] }
 
 pallet-trustless-file-server-runtime-api = { path = "./runtime-api", default-features = false }
-serde = "1.0.136"
-serde_json = "1.0.85"
+serde = { version = "1.0.136", default-features = false, features = ["alloc", "derive"]}
+serde_json = { version = "1.0.85", default-features = false }
 
 # Substrate packages
 sp-api = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.42" }
